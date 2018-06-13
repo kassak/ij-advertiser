@@ -1,0 +1,42 @@
+plugins {
+  id 'org.jetbrains.intellij' version "0.2.17"
+}
+repositories {
+  mavenCentral()
+}
+
+allprojects {
+  version 0.02
+
+  apply plugin: 'java'
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
+
+  sourceSets {
+    main {
+      java.srcDirs 'main/src'
+      resources.srcDirs 'main/resources'
+    }
+    test {
+      java.srcDir 'tests/src'
+      resources.srcDirs 'tests/testData'
+    }
+  }
+  apply plugin: 'org.jetbrains.intellij'
+  intellij {
+    pluginName 'ij-advertiser'
+    version 'IC-173.4301.14'
+    type 'IC'
+  }
+
+  patchPluginXml {
+    sinceBuild '171'
+    untilBuild '183'
+  }
+}
+
+publishPlugin {
+  username project.properties.get("publish.user")
+  password project.properties.get("publish.password")
+  channels project.properties.get("publish.channel") ?: "Stable"
+}
