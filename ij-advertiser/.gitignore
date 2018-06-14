@@ -1,5 +1,5 @@
-.gradle
-.idea
-build
-gradle.properties
+/.gradle
+/.idea
+/build
+/gradle.properties
 *.iml
