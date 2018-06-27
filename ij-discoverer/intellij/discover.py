@@ -3,16 +3,24 @@ import socket
 from urllib.request import Request, urlopen
 
 
-def discover_running_instances():
+def discover_running_instances(limit=None):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.sendto(bytes('IJDISC', 'latin1'), ('127.255.255.255', 6666))
 
-        packet = sock.recvfrom(7)
-        inst = _extract_host(packet)
-        print(inst)
-        print(_about(*inst))
+        sock.settimeout(0.5)
+        res = []
+        try:
+            while True:
+                packet = sock.recvfrom(7)
+                inst = _extract_host(packet)
+                res.append(Client(*inst))
+                if limit is not None and len(res) >= limit:
+                    break
+        except socket.timeout:
+            pass
+    return res
 
 
 def _extract_host(packet):
@@ -35,5 +43,35 @@ def _about(host, port):
         return json.loads(info.read())
 
 
+class Client(object):
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self._about = None
+
+    def request(self, path):
+        r = Request('http://{0}:{1}/api/{2}'.format(self.host, self.port, path))
+        r.add_header("Origin", "http://localhost")
+        return r
+
+    def perform(self, r):
+        if isinstance(r, str):
+            r = self.request(r)
+        with urlopen(r) as info:
+            return info.read()
+
+    def perform_json(self, r):
+        return json.loads(self.perform(r))
+
+    def about(self):
+        if self._about is None:
+            self._about = self.perform_json("about")
+        return self._about
+
+    def __repr__(self):
+        return "<{0}:{1}>".format(self.host, self.port)
+
+
 if __name__ == '__main__':
-    discover_running_instances()
+    for c in discover_running_instances():
+        print(c.about())

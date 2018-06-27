@@ -6,6 +6,6 @@ setup(
     author='Alexander Kass',
     description='Library for IntelliJ IDE discovery and interaction',
     license='MIT',
-    packages=['intellij'],
+    py_modules=['intellij.discover'],
     keywords='IntelliJ IDEA DataGrip PhpStorm PyCharm GoLand'
 )
