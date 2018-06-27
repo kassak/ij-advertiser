@@ -3,6 +3,11 @@ import socket
 from urllib.request import Request, urlopen
 
 
+def any_instance():
+    one = discover_running_instances(1)
+    return one[0] if one else None
+
+
 def discover_running_instances(limit=None):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -48,9 +53,13 @@ class Client(object):
         self.host = host
         self.port = port
         self._about = None
+        self.noisy = False
 
     def request(self, path):
-        r = Request('http://{0}:{1}/api/{2}'.format(self.host, self.port, path))
+        url = 'http://{0}:{1}/api/{2}'.format(self.host, self.port, path)
+        if self.noisy:
+            print(url)
+        r = Request(url)
         r.add_header("Origin", "http://localhost")
         return r
 
