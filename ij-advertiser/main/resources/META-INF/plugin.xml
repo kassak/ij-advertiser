@@ -1,6 +1,6 @@
 <idea-plugin url="https://github.com/kassak/geo-support">
-  <id>com.github.kassak.ij-discover</id>
-  <name>IJ discover</name>
+  <id>com.github.kassak.ij-advertiser</id>
+  <name>IJ Advertiser</name>
   <description>Allows applications to discover running instances of IDE</description>
   <vendor url="https://github.com/kassak"/>
 
