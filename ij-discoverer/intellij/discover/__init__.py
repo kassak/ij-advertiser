@@ -2,10 +2,21 @@ import json
 import socket
 from urllib.request import Request, urlopen
 
+_instance_cache = {}
+
+
+def create_instance(host, port):
+    global _instance_cache
+    key = (host, port)
+    inst = _instance_cache.get(key)
+    if inst is None:
+        _instance_cache[key] = inst = Client(host, port)
+    return inst
+
 
 def any_instance():
     one = discover_running_instances(1)
-    return one[0] if one else None
+    return one[0] if one else create_instance('127.0.0.1', 63343)
 
 
 def discover_running_instances(limit=None):
@@ -20,7 +31,7 @@ def discover_running_instances(limit=None):
             while True:
                 packet = sock.recvfrom(7)
                 inst = _extract_host(packet)
-                res.append(Client(*inst))
+                res.append(create_instance(*inst))
                 if limit is not None and len(res) >= limit:
                     break
         except socket.timeout:
