@@ -1,18 +1,32 @@
 package com.github.kassak.intellij.advertise;
 
+import com.intellij.ide.DataManager;
+import com.intellij.ide.actions.EditCustomVmOptionsAction;
+import com.intellij.notification.NotificationGroup;
+import com.intellij.notification.NotificationType;
+import com.intellij.openapi.actionSystem.ActionPlaces;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.ex.ActionUtil;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectManager;
+import com.intellij.openapi.project.ProjectManagerListener;
+import com.intellij.util.containers.ContainerUtil;
+import com.intellij.util.messages.MessageBusConnection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.ide.BuiltInServerManager;
 
+import javax.swing.event.HyperlinkEvent;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 public class AdvertiserService implements ApplicationComponent {
   private static final Logger LOG = Logger.getInstance(AdvertiserService.class);
+  private static final NotificationGroup NOTIFICATION_GROUP = NotificationGroup.balloonGroup("Advertiser Service");
   private DatagramSocket mySocket;
 
   @Override
@@ -25,6 +39,21 @@ public class AdvertiserService implements ApplicationComponent {
       new Thread(this::run, "IJ Advertiser Service").start();
     }
     catch (IOException e) {
+      ProjectManager manager = ProjectManager.getInstance();
+      Project project = ContainerUtil.find(manager.getOpenProjects(), p -> !p.isDefault() && p.isInitialized() && p.isOpen());
+      if (project != null) {
+        notifySolution(project, e);
+      }
+      else {
+        MessageBusConnection connection = ApplicationManager.getApplication().getMessageBus().connect();
+        connection.subscribe(ProjectManager.TOPIC, new ProjectManagerListener() {
+          @Override
+          public void projectOpened(Project project) {
+            connection.disconnect();
+            notifySolution(project, e);
+          }
+        });
+      }
       LOG.error("Failed to start advertiser service", e);
     }
   }
@@ -48,6 +77,27 @@ public class AdvertiserService implements ApplicationComponent {
       LOG.error(e);
     }
     LOG.info("Advertiser service stopped");
+  }
+
+  private void notifySolution(Project p, Exception e) {
+    LOG.warn("notify");
+    boolean known = "true".equals(System.getProperty("java.net.preferIPv4Stack"));
+    NOTIFICATION_GROUP.createNotification(
+      "Failed to start advertiser",
+      e.getMessage() + "\n" +
+        (known
+          ? "Please remove -Djava.net.preferIPv4Stack=true from <a href=\"opt\">VM options</a>." +
+          "Sorry for inconvenience :("
+          : "Don't know what to do :("),
+      NotificationType.ERROR,
+      (notification, event) -> {
+        if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+          ActionUtil.performActionDumbAware(
+            new EditCustomVmOptionsAction(),
+            AnActionEvent.createFromDataContext(ActionPlaces.UNKNOWN, null, DataManager.getInstance().getDataContext()));
+        }
+      }
+    ).notify(p);
   }
 
   private void handle(@NotNull DatagramPacket packet) {
